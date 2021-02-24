@@ -5,6 +5,11 @@ services:
     volumes:
       - ./etc/nginx:/etc/nginx/conf.d
       - ./logs/nginx:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-L", "-XGET", "http://wsgi:8000"]
+      interval: 1m
+      timeout: 30s
+      retries: 3
     restart: always
     ports:
       - 80:80
@@ -13,22 +18,56 @@ services:
   wsgi:
     build: .
     environment:
-      - ENV=test
-      - RS_USR=awsuser
-      - RS_PWD=${RS_PWD:-password}
-      - RS_HOST=${RS_HOST:-localhost}
-      - RS_PORT=5439
-      - RS_DB=prod
-      - RS_DB_TEST=dev
-      - RS_IAM_ROLE=${RS_IAM_ROLE:-DEFAULT_ROLE}
-      - S3_BUCKET=${S3_BUCKET:-S3_BUCKET_ID}
-      - S3_REGION=${S3_REGION:-S3_REGION_ID}
+      - ENV=prod
+      - SA_HOST=postdb
+      - SA_PORT=5432
+      - SA_DB_PROD=prod
+      - SA_DB_TEST=test
+      - SA_USR=admin
+      - SA_PWD=${SA_PWD:-password}
     restart: always
     volumes:
       - ./logs/rest:/app/logs/rest
-      - ./logs/wsgi:/var/log/supervisord
+      - ./logs/supervisord:/var/log/supervisord
+    networks:
+      - restnet
+  postdb:
+    image: postgres:latest
+    restart: always
+    shm_size: 10240M
+    ulimits:
+      nproc: 10240
+      nofile:
+        soft: 10240
+        hard: 10240
+    environment:
+      - PGDATA=/var/lib/psql/data
+      - POSTGRES_DB=prod
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=${SA_PWD:-password}
+    volumes:
+      - pgdata:/var/lib/psql/data
+      - ./etc/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - restnet
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@local.net
+      - PGADMIN_DEFAULT_PASSWORD=${PG_ADMIN_PWD:-password}
+      - PGADMIN_CONFIG_CONNECT_TIMEOUT=0
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - 39910:80
     networks:
       - restnet
 
 networks:
   restnet:
+
+volumes:
+  pgdata:
+  pgadmin:
