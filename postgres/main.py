@@ -15,10 +15,11 @@ async def total_sales(date: str):
     try:
         dt = datetime.strptime(date, fmt)
         dt_str = dt.strftime(fmt)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as err:
         raise HTTPException(
             status_code=400,
-            detail='parameter "date" accept only "yyyy-mm-dd" format')
+            detail='parameter "date" accept only "yyyy-mm-dd" format',
+        ) from err
     else:
         sales = _dao.total_sales(dt=dt_str)
         return {'sales': sales}

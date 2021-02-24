@@ -5,7 +5,7 @@ from functools import wraps
 from aiohttp.abc import Request
 
 
-class LogMaker(object):
+class LogMaker:
     def __init__(self, logger: logging.Logger):
         self._logger = logger
 

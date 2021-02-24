@@ -12,6 +12,8 @@ class Config:
     SA_DB = os.environ.get('SA_DB_PROD', 'prod')
     SA_USR = os.environ.get('SA_USR', 'YOUR_USERNAME')
     SA_PWD = os.environ.get('SA_PWD', 'YOUR_PASSWORD')
+    # data
+    DATA_PATH = ''.join([basedir, '/data'])
     # Logging
     LOGGING = {
         'version': 1,
