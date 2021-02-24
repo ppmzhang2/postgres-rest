@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  proxy:
+    image: nginx:latest
+    volumes:
+      - ./etc/nginx:/etc/nginx/conf.d
+      - ./logs/nginx:/var/log/nginx
+    restart: always
+    ports:
+      - 80:80
+    networks:
+      - restnet
+  wsgi:
+    build: .
+    environment:
+      - ENV=test
+      - RS_USR=awsuser
+      - RS_PWD=${RS_PWD:-password}
+      - RS_HOST=${RS_HOST:-localhost}
+      - RS_PORT=5439
+      - RS_DB=prod
+      - RS_DB_TEST=dev
+      - RS_IAM_ROLE=${RS_IAM_ROLE:-DEFAULT_ROLE}
+      - S3_BUCKET=${S3_BUCKET:-S3_BUCKET_ID}
+      - S3_REGION=${S3_REGION:-S3_REGION_ID}
+    restart: always
+    volumes:
+      - ./logs/rest:/app/logs/rest
+      - ./logs/wsgi:/var/log/supervisord
+    networks:
+      - restnet
+
+networks:
+  restnet:

@@ -1,0 +1,5 @@
+* text=auto
+*.sh text eol=lf
+*.py eol=lf
+*.sql eol=lf
+*.html eol=lf
