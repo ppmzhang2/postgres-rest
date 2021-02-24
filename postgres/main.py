@@ -2,8 +2,8 @@ from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
 
-from redshift import cfg
-from redshift.models.dao import Dao
+from postgres import cfg
+from postgres.models.dao import Dao
 
 app = FastAPI()
 _dao = Dao()

@@ -7,12 +7,12 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from redshift import cfg
-from redshift.log_maker import LogMaker
-from redshift.models.base import Base
-from redshift.models.tables import Users, Venue, Category, Date, Event, \
+from postgres import cfg
+from postgres.log_maker import LogMaker
+from postgres.models.base import Base
+from postgres.models.tables import Users, Venue, Category, Date, Event, \
     Listing, Sales
-from redshift.singleton_meta import SingletonMeta
+from postgres.singleton_meta import SingletonMeta
 
 __all__ = ['Dao']
 
