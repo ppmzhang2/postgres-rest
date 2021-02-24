@@ -81,11 +81,11 @@ class Dao(metaclass=SingletonMeta):
     def load_sample(self) -> NoReturn:
         def statement(table: str, filename: str, delimiter: str) -> str:
             return f'''copy {table} from
-                '{cfg.DATA_PATH}/{filename}'
-                delimiter '{delimiter}' CSV;
+                '/etc/data/{filename}'
+                delimiter {delimiter} CSV;
                 '''
 
-        dlm_map = {'pipe': '|', 'tab': '\\t'}
+        dlm_map = {'pipe': "'|'", 'tab': "E'\\t'"}
         tables = [
             'users', 'venue', 'category', 'date', 'event', 'listing', 'sales'
         ]

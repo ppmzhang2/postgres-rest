@@ -47,6 +47,7 @@ services:
       - POSTGRES_PASSWORD=${SA_PWD:-password}
     volumes:
       - pgdata:/var/lib/psql/data
+      - ./data:/etc/data
       - ./etc/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     networks:
       - restnet
