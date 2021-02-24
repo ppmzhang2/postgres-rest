@@ -3,7 +3,7 @@ import datetime
 import sqlalchemy as sa
 from sqlalchemy import ForeignKey
 
-from redshift.models.base import Base
+from postgres.models.base import Base
 
 
 class Users(Base):

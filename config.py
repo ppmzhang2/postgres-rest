@@ -3,18 +3,17 @@ import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
-class Config(object):
+class Config:
     # REST
     REST_URL_PREFIX = '/api/v1'
-    # Redshift
-    RS_USR = os.environ.get('RS_USR', 'awsuser')
-    RS_PWD = os.environ.get('RS_PWD', 'password')
-    RS_HOST = os.environ.get('RS_HOST', '127.0.0.1')
-    RS_PORT = os.environ.get('RS_PORT', '5439')
-    RS_DB = os.environ.get('RS_DB', 'prod')
-    RS_IAM_ROLE = os.environ.get('RS_IAM_ROLE', 'DEFAULT_ROLE')
-    S3_BUCKET = os.environ.get('S3_BUCKET', 'S3_BUCKET_ID')
-    S3_REGION = os.environ.get('S3_REGION', 'S3_REGION_ID')
+    # SqlAlchemy
+    SA_HOST = os.environ.get('SA_HOST', 'localhost')
+    SA_PORT = os.environ.get('SA_PORT', 5432)
+    SA_DB = os.environ.get('SA_DB_PROD', 'prod')
+    SA_USR = os.environ.get('SA_USR', 'YOUR_USERNAME')
+    SA_PWD = os.environ.get('SA_PWD', 'YOUR_PASSWORD')
+    # data
+    DATA_PATH = ''.join([basedir, '/data'])
     # Logging
     LOGGING = {
         'version': 1,
@@ -73,4 +72,4 @@ class Config(object):
 
 
 class TestConfig(Config):
-    RS_DB = os.environ.get('RS_DB_TEST', 'dev')
+    SA_DB = os.environ.get('SA_DB_TEST', 'test')

@@ -5,14 +5,14 @@ from typing import List, NoReturn, Optional
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from redshift import cfg
-from redshift.log_maker import LogMaker
-from redshift.models.base import Base
-from redshift.models.tables import Users, Venue, Category, Date, Event, \
-    Listing, Sales
-from redshift.singleton_meta import SingletonMeta
+from postgres import cfg
+from postgres.log_maker import LogMaker
+from postgres.models.base import Base
+from postgres.models.tables import (Category, Date, Event, Listing, Sales,
+                                    Users, Venue)
+from postgres.singleton_meta import SingletonMeta
 
 __all__ = ['Dao']
 
@@ -36,8 +36,8 @@ class Dao(metaclass=SingletonMeta):
 
     def __init__(self, echo=False):
         self._engine: Engine = create_engine(
-            f'redshift+psycopg2://{cfg.RS_USR}:{cfg.RS_PWD}'
-            f'@{cfg.RS_HOST}:{cfg.RS_PORT}/{cfg.RS_DB}',
+            f'postgresql+psycopg2://{cfg.SA_USR}:{cfg.SA_PWD}'
+            f'@{cfg.SA_HOST}:{cfg.SA_PORT}/{cfg.SA_DB}',
             echo=echo,
             echo_pool=echo,
             pool_size=20,
@@ -79,16 +79,13 @@ class Dao(metaclass=SingletonMeta):
 
     @log_maker
     def load_sample(self) -> NoReturn:
-        def statement(table: str, filename: str, delimiter: str,
-                      timeformat: str) -> str:
+        def statement(table: str, filename: str, delimiter: str) -> str:
             return f'''copy {table} from
-                's3://{cfg.S3_BUCKET}/tickit/{filename}'
-                credentials 'aws_iam_role={cfg.RS_IAM_ROLE}'
-                delimiter '{delimiter}' {timeformat}
-                region '{cfg.S3_REGION}';
+                '/etc/data/{filename}'
+                delimiter {delimiter} CSV;
                 '''
 
-        dlm_map = {'pipe': '|', 'tab': '\\t'}
+        dlm_map = {'pipe': "'|'", 'tab': "E'\\t'"}
         tables = [
             'users', 'venue', 'category', 'date', 'event', 'listing', 'sales'
         ]
@@ -106,13 +103,9 @@ class Dao(metaclass=SingletonMeta):
                 filter(lambda i: i in ['pipe', 'tab'], re.split(r'[_.]', s)))]
             for s in files
         ]
-        formats = [
-            '', '', '', '', "timeformat 'YYYY-MM-DD HH:MI:SS'", '',
-            "timeformat 'MM/DD/YYYY HH:MI:SS'"
-        ]
         with self._engine.begin() as conn:
-            for tb, file, dlm, fmt in zip(tables, files, delimiters, formats):
-                conn.execute(statement(tb, file, dlm, fmt))
+            for tb, file, dlm in zip(tables, files, delimiters):
+                conn.execute(statement(tb, file, dlm))
 
     @log_maker
     def all_users(self) -> List[Users]:

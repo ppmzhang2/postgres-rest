@@ -1,7 +1,7 @@
 import unittest
 from functools import reduce
 
-from redshift.models.dao import Dao
+from postgres.models.dao import Dao
 
 
 class TestModel(unittest.TestCase):
