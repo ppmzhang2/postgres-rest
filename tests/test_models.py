@@ -49,10 +49,10 @@ class TestModel(unittest.TestCase):
           * dao.count_<table_name>
 
         """
-        mappings = [(self.dao.count_users, 49990), (self.dao.count_venue, 202),
-                    (self.dao.count_category, 11), (self.dao.count_date, 365),
-                    (self.dao.count_event, 8798),
-                    (self.dao.count_listing, 192497),
+        mappings = [(self.dao.count_users, 49990), (self.dao.count_venues, 202),
+                    (self.dao.count_categories, 11), (self.dao.count_dates, 365),
+                    (self.dao.count_events, 8798),
+                    (self.dao.count_listings, 192497),
                     (self.dao.count_sales, 172456)]
 
         if reduce(lambda x, y: x and y, (f() == exp for f, exp in mappings)):
@@ -68,7 +68,7 @@ class TestModel(unittest.TestCase):
     def test_total_sales(self):
         dt = '2008-01-05'
         exp = 210
-        self.assertEqual(exp, self.dao.total_sales(dt))
+        self.assertEqual(exp, self.dao.total_sales_amount(dt))
 
 
 if __name__ == '__main__':

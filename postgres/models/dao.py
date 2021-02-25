@@ -5,13 +5,13 @@ from typing import List, NoReturn, Optional
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.engine.result import RowProxy
+from sqlalchemy.sql import select
 
 from postgres import cfg
 from postgres.log_maker import LogMaker
-from postgres.models.base import Base
-from postgres.models.tables import (Category, Date, Event, Listing, Sales,
-                                    Users, Venue)
+from postgres.models.tables import (categories, dates, events, listings, sales,
+                                    users, venues)
 from postgres.singleton_meta import SingletonMeta
 
 __all__ = ['Dao']
@@ -34,6 +34,8 @@ def _commit(fn):
 class Dao(metaclass=SingletonMeta):
     __slots__ = ['_engine']
 
+    _TABLES = (sales, listings, events, users, venues, categories, dates)
+
     def __init__(self, echo=False):
         self._engine: Engine = create_engine(
             f'postgresql+psycopg2://{cfg.SA_USR}:{cfg.SA_PWD}'
@@ -45,9 +47,10 @@ class Dao(metaclass=SingletonMeta):
             pool_recycle=3600,
             pool_timeout=30)
 
-    def _get_session(self) -> Session:
-        _Session = sessionmaker(bind=self._engine)
-        return _Session()
+    def _exec_stmt(self, stmt: str, *args, **kwargs):
+        with self._engine.begin() as conn:
+            res = conn.execute(stmt, *args, **kwargs)
+        return res
 
     @log_maker
     def reset_engine(self) -> NoReturn:
@@ -58,7 +61,8 @@ class Dao(metaclass=SingletonMeta):
 
     @log_maker
     def create_all(self) -> NoReturn:
-        Base.metadata.create_all(self._engine)
+        for table in reversed(self._TABLES):
+            table.create(bind=self._engine, checkfirst=True)
 
     @log_maker
     def drop_all(self) -> NoReturn:
@@ -67,11 +71,8 @@ class Dao(metaclass=SingletonMeta):
         there's no native `DROP TABLE ... CASCADE ...` method and tables should
         be dropped from the leaves of the dependency tree back to the root
         """
-        tables = (Sales, Listing, Event, Users, Venue, Category, Date)
-        list(
-            map(
-                lambda tb: tb.__table__.drop(bind=self._engine,
-                                             checkfirst=True), tables))
+        for table in self._TABLES:
+            table.drop(bind=self._engine, checkfirst=True)
 
     @log_maker
     def all_tables(self) -> List[str]:
@@ -87,7 +88,13 @@ class Dao(metaclass=SingletonMeta):
 
         dlm_map = {'pipe': "'|'", 'tab': "E'\\t'"}
         tables = [
-            'users', 'venue', 'category', 'date', 'event', 'listing', 'sales'
+            'd_user',
+            'd_venue',
+            'd_category',
+            'd_date',
+            'f_event',
+            'f_listing',
+            'f_sale',
         ]
         files = [
             'allusers_pipe.txt',
@@ -103,86 +110,55 @@ class Dao(metaclass=SingletonMeta):
                 filter(lambda i: i in ['pipe', 'tab'], re.split(r'[_.]', s)))]
             for s in files
         ]
-        with self._engine.begin() as conn:
-            for tb, file, dlm in zip(tables, files, delimiters):
-                conn.execute(statement(tb, file, dlm))
+        for tb, f, dlm in zip(tables, files, delimiters):
+            self._exec_stmt(statement(tb, f, dlm))
 
     @log_maker
-    def all_users(self) -> List[Users]:
-        @_commit
-        def _all_users(session: Session):
-            return session.query(Users).all()
+    def all_users(self) -> List[RowProxy]:
+        res = self._exec_stmt(select([users]))
+        return res.fetchall()
 
-        return _all_users(self._get_session())
+    def _count(self, column) -> int:
+        stmt = select([func.count(column)])
+        res = self._exec_stmt(stmt)
+        return res.fetchone()[0]
 
     @log_maker
     def count_users(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Users.userid)).scalar()
-
-        return helper(self._get_session())
+        return self._count(users.c.userid)
 
     @log_maker
-    def count_venue(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Venue.venueid)).scalar()
-
-        return helper(self._get_session())
+    def count_venues(self) -> Optional[int]:
+        return self._count(venues.c.venueid)
 
     @log_maker
-    def count_category(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Category.catid)).scalar()
-
-        return helper(self._get_session())
+    def count_categories(self) -> Optional[int]:
+        return self._count(categories.c.catid)
 
     @log_maker
-    def count_date(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Date.dateid)).scalar()
-
-        return helper(self._get_session())
+    def count_dates(self) -> Optional[int]:
+        return self._count(dates.c.dateid)
 
     @log_maker
-    def count_event(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Event.eventid)).scalar()
-
-        return helper(self._get_session())
+    def count_events(self) -> Optional[int]:
+        return self._count(events.c.eventid)
 
     @log_maker
-    def count_listing(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Listing.listid)).scalar()
-
-        return helper(self._get_session())
+    def count_listings(self) -> Optional[int]:
+        return self._count(listings.c.listid)
 
     @log_maker
     def count_sales(self) -> Optional[int]:
-        @_commit
-        def helper(session: Session):
-            return session.query(func.count(Sales.salesid)).scalar()
-
-        return helper(self._get_session())
+        return self._count(sales.c.salesid)
 
     @log_maker
-    def total_sales(self, dt: str) -> Optional[int]:
+    def total_sales_amount(self, dt: str) -> Optional[int]:
         """total sales on a given calendar date.
 
         :param dt: date string formatted as 'yyyy-mm-dd'
         :return: total sales on that day
         """
-        @_commit
-        def helper(session: Session):
-            return session.query(func.sum(
-                Sales.qtysold).label('total_sold')).join(
-                    Date, Sales.dateid == Date.dateid).filter(
-                        Date.caldate == dt).scalar()
-
-        return helper(self._get_session())
+        stmt = select([func.sum(sales.c.qtysold).label('total_sold')
+                       ]).where(dates.c.caldate == dt).select_from(
+                           sales.join(dates, sales.c.dateid == dates.c.dateid))
+        return self._exec_stmt(stmt).fetchone()[0]
