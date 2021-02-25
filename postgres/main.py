@@ -40,6 +40,23 @@ async def load_txt():
     return {'message': 'success'}
 
 
+@app.post(f'{cfg.REST_URL_PREFIX}/count/{{table}}')
+async def record_count(table: str):
+    dc_func = {
+        'user': _dao.count_users,
+        'listing': _dao.count_listings,
+        'category': _dao.count_categories
+    }
+    try:
+        func = dc_func[table]
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f'can only count {dc_func.keys()}',
+        ) from e
+    return {'detail': func()}
+
+
 @app.get(f'{cfg.REST_URL_PREFIX}/sales')
 async def total_sales(date: str):
     fmt = '%Y-%m-%d'
@@ -52,5 +69,5 @@ async def total_sales(date: str):
             detail='parameter "date" accept only "yyyy-mm-dd" format',
         ) from err
     else:
-        sales = _dao.total_sales(dt=dt_str)
+        sales = _dao.total_sales_amount(dt=dt_str)
         return {'sales': sales}
