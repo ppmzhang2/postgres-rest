@@ -4,9 +4,9 @@ from functools import wraps
 from fastapi import HTTPException
 
 from postgres import cfg
+from postgres.middleware import app
 from postgres.models.dao import Dao
-
-from .middleware import app
+from postgres.requests import ReqAddCategory
 
 _dao = Dao()
 
@@ -55,6 +55,12 @@ async def record_count(table: str):
             detail=f'can only count {dc_func.keys()}',
         ) from e
     return {'detail': func()}
+
+
+@app.post(f'{cfg.REST_URL_PREFIX}/new/cate/')
+async def new_cate(req: ReqAddCategory):
+    pkid = _dao.add_category(req.group, req.name, req.description)
+    return {'detail': pkid}
 
 
 @app.get(f'{cfg.REST_URL_PREFIX}/sales')
