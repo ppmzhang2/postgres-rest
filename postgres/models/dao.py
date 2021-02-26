@@ -1,9 +1,9 @@
 import logging.config
 import re
 from functools import wraps
-from typing import List, NoReturn, Optional
+from typing import Any, List, NoReturn, Optional
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import Column, Table, create_engine, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql import select
@@ -118,37 +118,77 @@ class Dao(metaclass=SingletonMeta):
         res = self._exec_stmt(select([users]))
         return res.fetchall()
 
-    def _count(self, column) -> int:
+    def _count(self, column: Column) -> int:
         stmt = select([func.count(column)])
         res = self._exec_stmt(stmt)
-        return res.fetchone()[0]
+        return res.first()[0]
+
+    def _lookup(
+        self,
+        table: Table,
+        column: Column,
+        key: Any,
+    ) -> Optional[RowProxy]:
+        stmt = select([table]).where(column == key)
+        res = self._exec_stmt(stmt).first()
+        if not res:
+            return None
+        return res
+
+    def _insert_one(self, table: Table, pkid: str, **kwargs) -> int:
+        """insert one record into table and return its primary key
+
+        :param table: table object to be inserted
+        :param kwargs: column-value pairs, each key must match its
+            corresponding column name
+        :return:
+        """
+        stmt = table.insert().values(**kwargs).returning(table.columns[pkid])
+        res = self._exec_stmt(stmt)
+        return res.first()[0]
 
     @log_maker
-    def count_users(self) -> Optional[int]:
+    def add_category(self, group: str, name: str, desc: str) -> int:
+        return self._insert_one(categories,
+                                'catid',
+                                catgroup=group,
+                                catname=name,
+                                catdesc=desc)
+
+    @log_maker
+    def lookup_category_id(self, cat_id: int) -> Optional[RowProxy]:
+        return self._lookup(categories, categories.c.catid, cat_id)
+
+    @log_maker
+    def lookup_category_name(self, cat_name: str) -> Optional[RowProxy]:
+        return self._lookup(categories, categories.c.catname, cat_name)
+
+    @log_maker
+    def count_users(self) -> int:
         return self._count(users.c.userid)
 
     @log_maker
-    def count_venues(self) -> Optional[int]:
+    def count_venues(self) -> int:
         return self._count(venues.c.venueid)
 
     @log_maker
-    def count_categories(self) -> Optional[int]:
+    def count_categories(self) -> int:
         return self._count(categories.c.catid)
 
     @log_maker
-    def count_dates(self) -> Optional[int]:
+    def count_dates(self) -> int:
         return self._count(dates.c.dateid)
 
     @log_maker
-    def count_events(self) -> Optional[int]:
+    def count_events(self) -> int:
         return self._count(events.c.eventid)
 
     @log_maker
-    def count_listings(self) -> Optional[int]:
+    def count_listings(self) -> int:
         return self._count(listings.c.listid)
 
     @log_maker
-    def count_sales(self) -> Optional[int]:
+    def count_sales(self) -> int:
         return self._count(sales.c.salesid)
 
     @log_maker
@@ -161,4 +201,4 @@ class Dao(metaclass=SingletonMeta):
         stmt = select([func.sum(sales.c.qtysold).label('total_sold')
                        ]).where(dates.c.caldate == dt).select_from(
                            sales.join(dates, sales.c.dateid == dates.c.dateid))
-        return self._exec_stmt(stmt).fetchone()[0]
+        return self._exec_stmt(stmt).first()[0]
