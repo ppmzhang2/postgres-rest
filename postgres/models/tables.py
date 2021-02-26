@@ -1,10 +1,12 @@
 from datetime import datetime
 
 from sqlalchemy import (CHAR, DECIMAL, TIMESTAMP, VARCHAR, Boolean, Column,
-                        Date, ForeignKey, Integer, MetaData, SmallInteger,
-                        Table)
+                        Date, ForeignKey, Integer, MetaData, Sequence,
+                        SmallInteger, Table)
 
 metadata = MetaData()
+
+dateid_seq = Sequence('dateid_seq', start=1827, increment=1)
 
 users = Table(
     'd_user',
@@ -32,7 +34,7 @@ users = Table(
 venues = Table(
     'd_venue',
     metadata,
-    Column('venueid', SmallInteger, primary_key=True),
+    Column('venueid', Integer, primary_key=True),
     Column('venuename', VARCHAR(100)),
     Column('venuecity', VARCHAR(30)),
     Column('venuestate', CHAR(2)),
@@ -42,7 +44,7 @@ venues = Table(
 categories = Table(
     'd_category',
     metadata,
-    Column('catid', SmallInteger, primary_key=True),
+    Column('catid', Integer, primary_key=True),
     Column('catgroup', VARCHAR(10)),
     Column('catname', VARCHAR(10)),
     Column('catdesc', VARCHAR(50)),
@@ -51,7 +53,11 @@ categories = Table(
 dates = Table(
     'd_date',
     metadata,
-    Column('dateid', SmallInteger, primary_key=True),
+    Column('dateid',
+           Integer,
+           dateid_seq,
+           server_default=dateid_seq.next_value(),
+           primary_key=True),
     Column('caldate', Date, nullable=False),
     Column('day', CHAR(3), nullable=False),
     Column('week', SmallInteger, nullable=False),
@@ -67,17 +73,17 @@ events = Table(
     Column('eventid', Integer, primary_key=True),
     Column(
         'venueid',
-        SmallInteger,
+        Integer,
         ForeignKey('d_venue.venueid', onupdate='CASCADE', ondelete='CASCADE'),
     ),
     Column(
         'catid',
-        SmallInteger,
+        Integer,
         ForeignKey('d_category.catid', onupdate='CASCADE', ondelete='CASCADE'),
     ),
     Column(
         'dateid',
-        SmallInteger,
+        Integer,
         ForeignKey('d_date.dateid', onupdate='CASCADE', ondelete='CASCADE'),
     ),
     Column('eventname', VARCHAR(200)),
@@ -96,7 +102,7 @@ listings = Table(
     ),
     Column(
         'dateid',
-        SmallInteger,
+        Integer,
         ForeignKey('d_date.dateid', onupdate='CASCADE', ondelete='CASCADE'),
     ),
     Column('numtickets', SmallInteger, nullable=False),
@@ -123,7 +129,7 @@ sales = Table(
     ),
     Column(
         'dateid',
-        SmallInteger,
+        Integer,
         ForeignKey('d_date.dateid', onupdate='CASCADE', ondelete='CASCADE'),
     ),
     Column('qtysold', SmallInteger, nullable=False),

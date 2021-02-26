@@ -1,6 +1,6 @@
 # PostgreSQL REST Service
 
-An `aiohttp` based REST service on querying PostgreSQL. The sample data can be found via the Amazon Redshift [Getting Started Guide](https://docs.aws.amazon.com/redshift/latest/gsg/rs-gsg-create-sample-db.html).
+An `aiohttp` based REST service on querying PostgreSQL. The sample data can be found [here](https://www.dropbox.com/s/cl08mf38i222fio/postgres-rest-tickitdb.zip?dl=0), modified from the Amazon Redshift [Getting Started Guide](https://docs.aws.amazon.com/redshift/latest/gsg/rs-gsg-create-sample-db.html).
 
 ## Usage
 
