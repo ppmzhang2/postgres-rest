@@ -1,7 +1,7 @@
 import logging.config
 import re
 from functools import wraps
-from typing import Any, List, NoReturn, Optional
+from typing import Any, List, NoReturn, Optional, Sequence
 
 from sqlalchemy import Column, Table, create_engine, func
 from sqlalchemy.engine import Engine
@@ -80,22 +80,28 @@ class Dao(metaclass=SingletonMeta):
 
     @log_maker
     def load_sample(self) -> NoReturn:
-        def statement(table: str, filename: str, delimiter: str) -> str:
-            return f'''copy {table} from
+        def not_primaries(table: Table):
+            return list(
+                col.key
+                for col in filter(lambda x: not x.primary_key, table.c))
+
+        def statement(table: str, columns: Sequence[str], filename: str,
+                      delimiter: str) -> str:
+            return f'''copy {table}({','.join(columns)}) from
                 '/etc/data/{filename}'
                 delimiter {delimiter} CSV;
                 '''
 
         dlm_map = {'pipe': "'|'", 'tab': "E'\\t'"}
-        tables = [
-            'd_user',
-            'd_venue',
-            'd_category',
-            'd_date',
-            'f_event',
-            'f_listing',
-            'f_sale',
-        ]
+        tables = {
+            'd_user': users,
+            'd_venue': venues,
+            'd_category': categories,
+            'd_date': dates,
+            'f_event': events,
+            'f_listing': listings,
+            'f_sale': sales,
+        }
         files = [
             'allusers_pipe.txt',
             'venue_pipe.txt',
@@ -105,13 +111,14 @@ class Dao(metaclass=SingletonMeta):
             'listings_pipe.txt',
             'sales_tab.txt',
         ]
+        columns = [not_primaries(t) for t in tables.values()]
         delimiters = [
             dlm_map[next(
                 filter(lambda i: i in ['pipe', 'tab'], re.split(r'[_.]', s)))]
             for s in files
         ]
-        for tb, f, dlm in zip(tables, files, delimiters):
-            self._exec_stmt(statement(tb, f, dlm))
+        for tb, col, f, dlm in zip(tables.keys(), columns, files, delimiters):
+            self._exec_stmt(statement(tb, col, f, dlm))
 
     @log_maker
     def all_users(self) -> List[RowProxy]:
