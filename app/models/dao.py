@@ -8,11 +8,11 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql import select
 
-from postgres import cfg
-from postgres.log_maker import LogMaker
-from postgres.models.tables import (categories, dates, events, listings, sales,
+from app import cfg
+from app.log_maker import LogMaker
+from app.models.tables import (categories, dates, events, listings, sales,
                                     users, venues)
-from postgres.singleton_meta import SingletonMeta
+from app.singleton_meta import SingletonMeta
 
 __all__ = ['Dao']
 

@@ -2,7 +2,7 @@ import argparse
 
 import uvicorn
 
-from postgres.main import app
+from app.main import app
 
 parser = argparse.ArgumentParser(description='Redshift Rest Service')
 parser.add_argument('--port')

@@ -1,14 +1,13 @@
 from datetime import datetime
 from functools import wraps
 
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 
-from postgres import cfg
-from postgres.middleware import app
-from postgres.models.dao import Dao
-from postgres.requests import ReqAddCategory
+from app.models.dao import Dao
+from app.schema.requests import ReqAddCategory
 
 _dao = Dao()
+router = APIRouter()
 
 
 def try_catch(fn):
@@ -26,7 +25,7 @@ def try_catch(fn):
 
 
 @try_catch
-@app.post(f'{cfg.REST_URL_PREFIX}/init/')
+@router.post('/init/')
 async def init_db():
     _dao.drop_all()
     _dao.create_all()
@@ -34,13 +33,13 @@ async def init_db():
 
 
 @try_catch
-@app.post(f'{cfg.REST_URL_PREFIX}/load/')
+@router.post('/load/')
 async def load_txt():
     _dao.load_sample()
     return {'message': 'success'}
 
 
-@app.post(f'{cfg.REST_URL_PREFIX}/count/{{table}}')
+@router.post('/count/{table}')
 async def record_count(table: str):
     dc_func = {
         'user': _dao.count_users,
@@ -57,13 +56,13 @@ async def record_count(table: str):
     return {'detail': func()}
 
 
-@app.post(f'{cfg.REST_URL_PREFIX}/new/cate/')
+@router.post('/new/cate/')
 async def new_cate(req: ReqAddCategory):
     pkid = _dao.add_category(req.group, req.name, req.description)
     return {'detail': pkid}
 
 
-@app.get(f'{cfg.REST_URL_PREFIX}/sales')
+@router.get('/sales')
 async def total_sales(date: str):
     fmt = '%Y-%m-%d'
     try:
