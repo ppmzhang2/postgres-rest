@@ -38,12 +38,41 @@ sudo systemctl enable docker-postgres-rest
 
 ## API
 
-### Total Sales
+### Config - Initialization
+
+Initializing DB by recreating all tables.
+
+* **Method**: `POST`
+* **Example**: `/api/v1/config/init`
+* **Response Attributes**
+    + message: "success" if succeeded
+
+### Config - Load
+
+Loading into DB data in the text files.
+
+* **Method**: `POST`
+* **Example**: `/api/v1/config/load`
+* **Response Attributes**
+    + message: "success" if succeeded
+
+### Config - Count
+
+Couting records in tables.
+
+* **Method**: `GET`
+* **Example**: `/api/v1/config/count/{table}`
+* **Arguments**
+    + table: table name
+* **Response Attributes**
+    + result: number of records in that table
+
+### Summary - Total Sales
 
 Get total sales quantity at a given date.
 
 * **Method**: `GET`
-* **Example**: `/api/v1/sales?date=2008-01-05`
+* **Example**: `/api/v1/summary/sales?date=2008-01-05`
 * **Arguments**
     + date: date string in `yyyy-mm-dd` format
 * **Response Attributes**
