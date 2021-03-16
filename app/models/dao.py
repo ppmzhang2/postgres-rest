@@ -199,7 +199,7 @@ class Dao(metaclass=SingletonMeta):
         return self._count(sales.c.salesid)
 
     @log_maker
-    def total_sales_amount(self, dt: str) -> Optional[int]:
+    def total_sales_amount(self, dt: str) -> int:
         """total sales on a given calendar date.
 
         :param dt: date string formatted as 'yyyy-mm-dd'
@@ -208,4 +208,4 @@ class Dao(metaclass=SingletonMeta):
         stmt = select([func.sum(sales.c.qtysold).label('total_sold')
                        ]).where(dates.c.caldate == dt).select_from(
                            sales.join(dates, sales.c.dateid == dates.c.dateid))
-        return self._exec_stmt(stmt).first()[0]
+        return self._exec_stmt(stmt).first()[0] or 0

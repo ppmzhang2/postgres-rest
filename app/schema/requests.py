@@ -1,11 +1,11 @@
 import pydantic
 
 
-class ReqAddCategory(pydantic.BaseModel):
+class NewCategoryRequest(pydantic.BaseModel):
     group: str
     name: str
     description: str
 
 
-class RespCategory(ReqAddCategory):
+class CategoryResponse(NewCategoryRequest):
     pkid: int
