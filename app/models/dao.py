@@ -1,18 +1,16 @@
 import logging.config
 import re
-from functools import wraps
 from typing import Any, List, NoReturn, Optional, Sequence
 
-from sqlalchemy import Column, Table, create_engine, func
-from sqlalchemy.engine import Engine
+from sqlalchemy import Column, Table, func
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql import select
 
 from app import cfg
 from app.log_maker import LogMaker
+from app.models.session import safe_session
 from app.models.tables import (categories, dates, events, listings, sales,
-                                    users, venues)
-from app.singleton_meta import SingletonMeta
+                               users, venues)
 
 __all__ = ['Dao']
 
@@ -21,65 +19,9 @@ logger = logging.getLogger('info_logger')
 log_maker = LogMaker(logger)
 
 
-def _commit(fn):
-    @wraps(fn)
-    def helper(*args, **kwargs):
-        res = fn(*args, **kwargs)
-        args[0].commit()
-        return res
-
-    return helper
-
-
-class Dao(metaclass=SingletonMeta):
-    __slots__ = ['_engine']
-
-    _TABLES = (sales, listings, events, users, venues, categories, dates)
-
-    def __init__(self, echo=False):
-        self._engine: Engine = create_engine(
-            f'postgresql+psycopg2://{cfg.SA_USR}:{cfg.SA_PWD}'
-            f'@{cfg.SA_HOST}:{cfg.SA_PORT}/{cfg.SA_DB}',
-            echo=echo,
-            echo_pool=echo,
-            pool_size=20,
-            max_overflow=5,
-            pool_recycle=3600,
-            pool_timeout=30)
-
-    def _exec_stmt(self, stmt: str, *args, **kwargs):
-        with self._engine.begin() as conn:
-            res = conn.execute(stmt, *args, **kwargs)
-        return res
-
-    @log_maker
-    def reset_engine(self) -> NoReturn:
-        """Dispose of the connection pool
-
-        """
-        self._engine.dispose()
-
-    @log_maker
-    def create_all(self) -> NoReturn:
-        for table in reversed(self._TABLES):
-            table.create(bind=self._engine, checkfirst=True)
-
-    @log_maker
-    def drop_all(self) -> NoReturn:
-        """drop all tables defined in `redshift.tables`
-
-        there's no native `DROP TABLE ... CASCADE ...` method and tables should
-        be dropped from the leaves of the dependency tree back to the root
-        """
-        for table in self._TABLES:
-            table.drop(bind=self._engine, checkfirst=True)
-
-    @log_maker
-    def all_tables(self) -> List[str]:
-        return self._engine.table_names()
-
-    @log_maker
-    def load_sample(self) -> NoReturn:
+class Dao:
+    @staticmethod
+    def load_sample() -> NoReturn:
         def not_primaries(table: Table):
             return list(
                 col.key
@@ -118,31 +60,45 @@ class Dao(metaclass=SingletonMeta):
             for s in files
         ]
         for tb, col, f, dlm in zip(tables.keys(), columns, files, delimiters):
-            self._exec_stmt(statement(tb, col, f, dlm))
+            with safe_session() as sess:
+                sess.execute(statement(tb, col, f, dlm))
 
-    @log_maker
-    def all_users(self) -> List[RowProxy]:
-        res = self._exec_stmt(select([users]))
+    @staticmethod
+    def _all(table: Table, limit: int, offset: int) -> List[RowProxy]:
+        with safe_session() as sess:
+            res = sess.execute(select([table]).limit(limit).offset(offset))
         return res.fetchall()
 
-    def _count(self, column: Column) -> int:
+    @log_maker
+    def all_user(self, limit: int, offset: int) -> List[RowProxy]:
+        return self._all(users, limit, offset)
+
+    @log_maker
+    def all_category(self, limit: int, offset: int) -> List[RowProxy]:
+        return self._all(categories, limit, offset)
+
+    @staticmethod
+    def _count(column: Column) -> int:
         stmt = select([func.count(column)])
-        res = self._exec_stmt(stmt)
+        with safe_session() as sess:
+            res = sess.execute(stmt)
         return res.first()[0]
 
+    @staticmethod
     def _lookup(
-        self,
         table: Table,
         column: Column,
         key: Any,
     ) -> Optional[RowProxy]:
         stmt = select([table]).where(column == key)
-        res = self._exec_stmt(stmt).first()
+        with safe_session() as sess:
+            res = sess.execute(stmt).first()
         if not res:
             return None
         return res
 
-    def _insert_one(self, table: Table, pkid: str, **kwargs) -> int:
+    @staticmethod
+    def _insert_one(table: Table, pkid: str, **kwargs) -> int:
         """insert one record into table and return its primary key
 
         :param table: table object to be inserted
@@ -151,7 +107,8 @@ class Dao(metaclass=SingletonMeta):
         :return:
         """
         stmt = table.insert().values(**kwargs).returning(table.columns[pkid])
-        res = self._exec_stmt(stmt)
+        with safe_session() as sess:
+            res = sess.execute(stmt)
         return res.first()[0]
 
     @log_maker
@@ -198,8 +155,8 @@ class Dao(metaclass=SingletonMeta):
     def count_sales(self) -> int:
         return self._count(sales.c.salesid)
 
-    @log_maker
-    def total_sales_amount(self, dt: str) -> int:
+    @staticmethod
+    def total_sales_amount(dt: str) -> int:
         """total sales on a given calendar date.
 
         :param dt: date string formatted as 'yyyy-mm-dd'
@@ -208,4 +165,6 @@ class Dao(metaclass=SingletonMeta):
         stmt = select([func.sum(sales.c.qtysold).label('total_sold')
                        ]).where(dates.c.caldate == dt).select_from(
                            sales.join(dates, sales.c.dateid == dates.c.dateid))
-        return self._exec_stmt(stmt).first()[0] or 0
+        with safe_session() as sess:
+            res = sess.execute(stmt)
+        return res.first()[0] or 0
