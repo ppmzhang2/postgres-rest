@@ -3,8 +3,10 @@ from functools import wraps
 from fastapi import APIRouter, HTTPException
 
 from app.models.dao import Dao
+from app.models.db import DB
 from app.schema.common_response import MsgResponse, NumResponse
 
+_db = DB()
 _dao = Dao()
 router = APIRouter()
 
@@ -26,8 +28,8 @@ def try_catch(fn):
 @try_catch
 @router.post('/init', response_model=MsgResponse)
 async def init_db():
-    _dao.drop_all()
-    _dao.create_all()
+    _db.drop_all()
+    _db.create_all()
     return MsgResponse(message='success')
 
 
