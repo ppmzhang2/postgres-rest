@@ -3,7 +3,8 @@ from enum import Enum
 
 class ErrorCategory(Enum):
     NOT_FOUND = 'record-not-found'
-    DB_OTHER = 'unexpected-db-error'
+    DB = 'db-error'
+    REQUEST_INVALID = 'invalid-request'
     OTHER = 'unexpected-error'
 
 
