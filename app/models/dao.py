@@ -1,4 +1,4 @@
-import logging.config
+import logging
 import re
 from typing import Any, List, NoReturn, Optional, Sequence
 
@@ -11,6 +11,7 @@ from app.log_maker import LogMaker
 from app.models.session import safe_session
 from app.models.tables import (categories, dates, events, listings, sales,
                                users, venues)
+from app.schema.api_exception import ApiException, ErrorCategory
 
 __all__ = ['Dao']
 
@@ -21,7 +22,15 @@ log_maker = LogMaker(logger)
 
 class Dao:
     @staticmethod
-    def load_sample() -> NoReturn:
+    def _exec(stmt: str, *args, **kwargs):
+        try:
+            with safe_session() as sess:
+                res = sess.execute(stmt, *args, **kwargs)
+            return res
+        except Exception as exc:
+            raise ApiException(500, ErrorCategory.DB_OTHER, repr(exc)) from exc
+
+    def load_sample(self) -> NoReturn:
         def not_primaries(table: Table):
             return list(
                 col.key
@@ -60,13 +69,10 @@ class Dao:
             for s in files
         ]
         for tb, col, f, dlm in zip(tables.keys(), columns, files, delimiters):
-            with safe_session() as sess:
-                sess.execute(statement(tb, col, f, dlm))
+            self._exec(statement(tb, col, f, dlm))
 
-    @staticmethod
-    def _all(table: Table, limit: int, offset: int) -> List[RowProxy]:
-        with safe_session() as sess:
-            res = sess.execute(select([table]).limit(limit).offset(offset))
+    def _all(self, table: Table, limit: int, offset: int) -> List[RowProxy]:
+        res = self._exec(select([table]).limit(limit).offset(offset))
         return res.fetchall()
 
     @log_maker
@@ -77,28 +83,29 @@ class Dao:
     def all_category(self, limit: int, offset: int) -> List[RowProxy]:
         return self._all(categories, limit, offset)
 
-    @staticmethod
-    def _count(column: Column) -> int:
+    def _count(self, column: Column) -> int:
         stmt = select([func.count(column)])
-        with safe_session() as sess:
-            res = sess.execute(stmt)
+        res = self._exec(stmt)
         return res.first()[0]
 
-    @staticmethod
     def _lookup(
+        self,
         table: Table,
         column: Column,
         key: Any,
     ) -> Optional[RowProxy]:
         stmt = select([table]).where(column == key)
-        with safe_session() as sess:
-            res = sess.execute(stmt).first()
+        res = self._exec(stmt).first()
         if not res:
-            return None
+            raise ApiException(
+                404,
+                ErrorCategory.NOT_FOUND,
+                (f'no record with filter "{column.name} = {key}" in '
+                 f'"{table.name}"'),
+            )
         return res
 
-    @staticmethod
-    def _insert_one(table: Table, pkid: str, **kwargs) -> int:
+    def _insert_one(self, table: Table, pkid: str, **kwargs) -> int:
         """insert one record into table and return its primary key
 
         :param table: table object to be inserted
@@ -107,8 +114,7 @@ class Dao:
         :return:
         """
         stmt = table.insert().values(**kwargs).returning(table.columns[pkid])
-        with safe_session() as sess:
-            res = sess.execute(stmt)
+        res = self._exec(stmt)
         return res.first()[0]
 
     @log_maker
@@ -155,8 +161,7 @@ class Dao:
     def count_sales(self) -> int:
         return self._count(sales.c.salesid)
 
-    @staticmethod
-    def total_sales_amount(dt: str) -> int:
+    def total_sales_amount(self, dt: str) -> int:
         """total sales on a given calendar date.
 
         :param dt: date string formatted as 'yyyy-mm-dd'
@@ -165,6 +170,5 @@ class Dao:
         stmt = select([func.sum(sales.c.qtysold).label('total_sold')
                        ]).where(dates.c.caldate == dt).select_from(
                            sales.join(dates, sales.c.dateid == dates.c.dateid))
-        with safe_session() as sess:
-            res = sess.execute(stmt)
+        res = self._exec(stmt)
         return res.first()[0] or 0
