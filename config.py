@@ -28,17 +28,11 @@ class Config:
                 '%(name)s: '
                 '%(message)s',
             },
-            'small': {
-                'format':
-                '%(asctime)s [%(levelname)s] '
-                '%(real_module)s - %(real_funcName)s - %(real_lineno)s: '
-                '%(message)s',
-            },
         },
         'handlers': {
             'info_file': {
                 'level': 'INFO',
-                'formatter': 'small',
+                'formatter': 'micro',
                 'class': 'logging.handlers.TimedRotatingFileHandler',
                 'when': 'H',
                 'interval': 1,
@@ -47,13 +41,13 @@ class Config:
             },
             'debug_streamer': {
                 'level': 'DEBUG',
-                'formatter': 'small',
+                'formatter': 'micro',
                 'class': 'logging.StreamHandler',
                 'stream': 'ext://sys.stdout',
             },
             'debug_file': {
                 'level': 'DEBUG',
-                'formatter': 'small',
+                'formatter': 'micro',
                 'class': 'logging.handlers.TimedRotatingFileHandler',
                 'when': 'M',
                 'interval': 1,
@@ -62,14 +56,21 @@ class Config:
             },
         },
         'loggers': {
-            'info_logger': {
-                'handlers': ['debug_file', 'info_file'],
+            'debug_logger': {
+                'handlers': ['debug_file'],
                 'level': 'DEBUG',
+                'propagate': False,
+            },
+            'info_logger': {
+                'handlers': ['info_file'],
+                'level': 'INFO',
                 'propagate': False,
             },
         },
     }
+    LOGGER = 'info_logger'
 
 
 class TestConfig(Config):
     SA_DB = os.environ.get('SA_DB_TEST', 'test')
+    LOGGER = 'debug_logger'

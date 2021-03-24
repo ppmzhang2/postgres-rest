@@ -1,4 +1,3 @@
-import logging
 import re
 from typing import Any, List, NoReturn, Optional, Sequence
 
@@ -6,18 +5,12 @@ from sqlalchemy import Column, Table, func
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql import select
 
-from app import cfg
-from app.log_maker import LogMaker
 from app.models.session import safe_session
 from app.models.tables import (categories, dates, events, listings, sales,
                                users, venues)
 from app.schema.api_exception import ApiException, ErrorCategory
 
 __all__ = ['Dao']
-
-logging.config.dictConfig(cfg.LOGGING)
-logger = logging.getLogger('info_logger')
-log_maker = LogMaker(logger)
 
 
 class Dao:
@@ -28,7 +21,7 @@ class Dao:
                 res = sess.execute(stmt, *args, **kwargs)
             return res
         except Exception as exc:
-            raise ApiException(500, ErrorCategory.DB_OTHER, repr(exc)) from exc
+            raise ApiException(500, ErrorCategory.DB, repr(exc)) from exc
 
     def load_sample(self) -> NoReturn:
         def not_primaries(table: Table):
@@ -75,11 +68,9 @@ class Dao:
         res = self._exec(select([table]).limit(limit).offset(offset))
         return res.fetchall()
 
-    @log_maker
     def all_user(self, limit: int, offset: int) -> List[RowProxy]:
         return self._all(users, limit, offset)
 
-    @log_maker
     def all_category(self, limit: int, offset: int) -> List[RowProxy]:
         return self._all(categories, limit, offset)
 
@@ -117,7 +108,6 @@ class Dao:
         res = self._exec(stmt)
         return res.first()[0]
 
-    @log_maker
     def add_category(self, group: str, name: str, desc: str) -> int:
         return self._insert_one(categories,
                                 'catid',
@@ -125,39 +115,30 @@ class Dao:
                                 catname=name,
                                 catdesc=desc)
 
-    @log_maker
     def lookup_category_id(self, cat_id: int) -> Optional[RowProxy]:
         return self._lookup(categories, categories.c.catid, cat_id)
 
-    @log_maker
     def lookup_category_name(self, cat_name: str) -> Optional[RowProxy]:
         return self._lookup(categories, categories.c.catname, cat_name)
 
-    @log_maker
     def count_users(self) -> int:
         return self._count(users.c.userid)
 
-    @log_maker
     def count_venues(self) -> int:
         return self._count(venues.c.venueid)
 
-    @log_maker
     def count_categories(self) -> int:
         return self._count(categories.c.catid)
 
-    @log_maker
     def count_dates(self) -> int:
         return self._count(dates.c.dateid)
 
-    @log_maker
     def count_events(self) -> int:
         return self._count(events.c.eventid)
 
-    @log_maker
     def count_listings(self) -> int:
         return self._count(listings.c.listid)
 
-    @log_maker
     def count_sales(self) -> int:
         return self._count(sales.c.salesid)
 
